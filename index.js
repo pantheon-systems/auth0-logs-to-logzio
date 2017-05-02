@@ -1,4 +1,3 @@
-const winston = require('winston');
 const async = require('async');
 const moment = require('moment');
 const useragent = require('useragent');
@@ -12,7 +11,7 @@ const httpRequest = require('request');
 
 function lastLogCheckpoint(req, res) {
   let ctx = req.webtaskContext;
-  let required_settings = ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID', 'AUTH0_CLIENT_SECRET', 'LOGSTASH_URL', 'LOGSTASH_INDEX'];
+  let required_settings = ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID', 'AUTH0_CLIENT_SECRET', 'LOGZIO_URL', 'LOGZIO_TOKEN', 'LOGZIO_TYPE'];
   let missing_settings = required_settings.filter((setting) => !ctx.data[setting]);
 
   if (missing_settings.length) {
@@ -28,16 +27,16 @@ function lastLogCheckpoint(req, res) {
       this primes the http request with the eventual message
       and necessary HTTP info
      */
-    var optionsFactory = function (body) {
+    let optionsFactory = function (body) {
       return {
-        method: 'POST',
-        url: ctx.data.LOGSTASH_URL,
-        headers:
-        {
+        method:  'POST',
+        url:     `${ctx.data.LOGZIO_URL}?token=${ctx.data.LOGZIO_TOKEN}&type=${ctx.data.LOGZIO_TYPE}`,
+        headers: {
           'cache-control': 'no-cache',
-          'content-type': 'application/json' },
-        body: body,
-        json: true
+          'content-type':  'application/json'
+        },
+        body:    body,
+        json:    true
       };
     };
 
@@ -88,40 +87,33 @@ function lastLogCheckpoint(req, res) {
           return log.type && types_filter.indexOf(log.type) >= 0;
         };
 
+        console.log(`Filtering ${context.logs.length} logs matching LOG_LEVEL:${min_log_level} and LOG_TYPES:[${types_filter.join(',')}]`);
         context.logs = context.logs
           .filter(l => l.type !== 'sapi' && l.type !== 'fapi')
           .filter(log_matches_level)
           .filter(log_matches_types);
 
+        console.log(`${context.logs.length} remain post filtering.`);
         callback(null, context);
       },
       (context, callback) => {
-        console.log('Uploading blobs...');
+        console.log('Shipping log data...');
 
-        var now = Date.now();
-
-        async.eachLimit(context.logs, 100, (log, cb) => {
-          const date = moment(log.date);
-          const url = `${date.format('YYYY/MM/DD')}/${date.format('HH')}/${log._id}.json`;
-          console.log(`Uploading ${url}.`);
-          var body = {};
-          body.post_date = now;
-          body[ctx.data.LOGSTASH_INDEX] = log[ctx.data.LOGSTASH_INDEX] || 'auth0';
-          body.message = JSON.stringify(log);
-          httpRequest(optionsFactory(body), function (error /*, response, body */) {
-            if (error) {
-              return cb(error);
-            }
-            return cb();
+        if (context.logs.length > 0) {
+          let body = context.logs.map(function (entry /*, index, arr */) {
+            return JSON.stringify(entry);
           });
-        }, (err) => {
-          if (err) {
-            return callback({ error: err, message: 'Error sending logs to Logstash' });
-          }
+          console.log(body.join('\n'));
+          // httpRequest(optionsFactory(body), function (error /*, response, body */) {
+          //   if (error) {
+          //     return callback(error);
+          //   }
+          //   return callback();
+          // });
+        }
 
-          console.log('Upload complete.');
-          return callback(null, context);
-        });
+        console.log(`Sent ${context.logs.length} log entries. Upload complete.`);
+        return callback(null, context);
       }
     ], function (err, context) {
       if (err) {

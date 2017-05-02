@@ -1,8 +1,8 @@
-# Auth0 - Logs to Logstash
+# Auth0 - Logs to Logz.io
 
 [![Auth0 Extensions](http://cdn.auth0.com/extensions/assets/badge.svg)](https://sandbox.it.auth0.com/api/run/auth0-extensions/extensions-badge?webtask_no_cache=1)
 
-This extension will take all of your Auth0 logs and export them to Logstash.
+This extension will take all of your Auth0 logs and export them to [Logz.io](https://logz.io).
 
 ## Configure Webtask
 
@@ -22,14 +22,15 @@ To run it on a schedule (run every 5 minutes for example):
 ```bash
 $ npm run build
 $ wt cron schedule \
-    --name auth0-logs-to-logstash \
+    --name auth0-logs-to-logzio \
     --secret AUTH0_DOMAIN="YOUR_AUTH0_DOMAIN" \
     --secret AUTH0_GLOBAL_CLIENT_ID="YOUR_AUTH0_GLOBAL_CLIENT_ID" \
     --secret AUTH0_GLOBAL_CLIENT_SECRET="YOUR_AUTH0_GLOBAL_CLIENT_SECRET" \
     --secret LOG_LEVEL="1" \
     --secret LOG_TYPES="s,f" \
-    --secret LOGSTASH_URL="LOGSTASH_URL" \
-    --secret LOGSTASH_INDEX="LOGSTASH_INDEX" \
+    --secret LOGZIO_TOKEN="LOGZIO_TOKEN" \
+    --secret LOGZIO_URL="https://listener.logz.io:8071/" \
+    --secret LOGZIO_TYPE="auth0" \
     "*/5 * * * *" \
     build/bundle.js
 ```
@@ -42,65 +43,22 @@ The following settings are optional:
 
 > You can get your Global Client Id/Secret here: https://auth0.com/docs/api/v2
 
-## Usage - pre-requisites
-
-Very simple, but there is some ground work getting setup, in particular if installing locally.
-
-Assuming here you wish to make use of the `ELK` stack - visualizing data with ElasticSearch, Logstash, and Kibana.
-
-Here are some instructions on getting setup:
-
-```
-brew install elasticsearch
-brew install logstash
-brew install kibana
-```
-
-Strongly recommend you install the latest versions of each.
-Install the [plugins](https://www.elastic.co/guide/en/logstash/current/input-plugins.html) you need.
-
-For this NPM module, you need to have [logstash-input-http](https://github.com/logstash-plugins/logstash-input-http) installed.
-By default, this is already installed on modern versions of `logstash` out of the box.
-
-In separate terminal windows (shells), just run:
-
-```
-$ elasticsearch
-$ kibana
-```
-
-If you opted to have elasticsearch and kibana start automatically as a service on startup, then you don't need to explicitly start them as above.
-
-#### Get some data into Logstash
-
-For test purposes only, just run the following:
-
-```
-curl -H "content-type: application/json" -XPUT 'http://127.0.0.1:8080/twitter/tweet/1' -d '{ "user" : "arcseldon", "post_date" : "2016-04-23T14:12:12", "message" : "Testing Auth0 integration with Elasticsearch" }'
-```
-
-You could do a `POST` request here, and change the URI to be different to `twitter/tweet/` etc.
-
-Change the `user` value as you wish, and also update the `post_date` value to something near realtime. Just be careful here, I would recommned setting it to something like 12 hours earlier than the current time (to get around any timezone issues etc - remember we're doing a barebones test here, so you can sort this out later - we just want to see this work for now).
-
-You should be getting an `ok` response. Run the same command about 10 times just so we have a few entries to play with.
-
-
-#### Now set up a default index:
-
-Open Kibana - `http://localhost:5601/` - Settings.
-
-Leave `index contains time-based events` ticked.
-Just enter `user` for the index name or pattern
-For `Time-field name` (which becomes visible after you enter an accepted index name), choose `post_date` and hit `Create`
-
-Now head over to `Discover` from the top nav bar, and enter `*` for the search, and hit enter. You should see your data.
-
-Right, you're setup locally, time to use the Auth0 extension!
-
 ## Usage
 
-Install the extension, and inspect your logstash logs with Kibana!
+Install the extension, and search your logz.io data using the LOGZIO_TYPE key (default 'auth0') specified.
+
+## Developing
+1. Ensure webpack is installed:
+
+   `npm install -g webpack`
+
+1. Ensure dependencies are installed:
+
+   `npm install`
+
+1. Build runtime artifact (bundle.js):
+
+   `webpack`
 
 
 ## Filters
@@ -160,7 +118,7 @@ If you have found a bug or if you have a feature request, please report them at 
 
 ## Author
 
-[Auth0](auth0.com)
+[Pantheon Systems](https://pantheon.io)
 
 ## What is Auth0?
 

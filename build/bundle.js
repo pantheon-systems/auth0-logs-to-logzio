@@ -43,7 +43,7 @@ module.exports =
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(setImmediate) {'use strict';
 
@@ -51,20 +51,19 @@ module.exports =
 
 	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-	var winston = __webpack_require__(3);
-	var async = __webpack_require__(4);
-	var moment = __webpack_require__(5);
-	var useragent = __webpack_require__(6);
-	var express = __webpack_require__(7);
-	var Webtask = __webpack_require__(8);
+	var async = __webpack_require__(3);
+	var moment = __webpack_require__(4);
+	var useragent = __webpack_require__(5);
+	var express = __webpack_require__(6);
+	var Webtask = __webpack_require__(7);
 	var app = express();
-	var Request = __webpack_require__(9);
-	var memoizer = __webpack_require__(10);
-	var httpRequest = __webpack_require__(9);
+	var Request = __webpack_require__(8);
+	var memoizer = __webpack_require__(9);
+	var httpRequest = __webpack_require__(8);
 
 	function lastLogCheckpoint(req, res) {
 	  var ctx = req.webtaskContext;
-	  var required_settings = ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID', 'AUTH0_CLIENT_SECRET', 'LOGSTASH_URL', 'LOGSTASH_INDEX'];
+	  var required_settings = ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID', 'AUTH0_CLIENT_SECRET', 'LOGZIO_URL', 'LOGZIO_TOKEN', 'LOGZIO_TYPE'];
 	  var missing_settings = required_settings.filter(function (setting) {
 	    return !ctx.data[setting];
 	  });
@@ -85,10 +84,11 @@ module.exports =
 	    var optionsFactory = function optionsFactory(body) {
 	      return {
 	        method: 'POST',
-	        url: ctx.data.LOGSTASH_URL,
+	        url: ctx.data.LOGZIO_URL + '?token=' + ctx.data.LOGZIO_TOKEN + '&type=' + ctx.data.LOGZIO_TYPE,
 	        headers: {
 	          'cache-control': 'no-cache',
-	          'content-type': 'application/json' },
+	          'content-type': 'application/json'
+	        },
 	        body: body,
 	        json: true
 	      };
@@ -143,38 +143,31 @@ module.exports =
 	        return log.type && types_filter.indexOf(log.type) >= 0;
 	      };
 
+	      console.log('Filtering ' + context.logs.length + ' logs matching LOG_LEVEL:' + min_log_level + ' and LOG_TYPES:[' + types_filter.join(',') + ']');
 	      context.logs = context.logs.filter(function (l) {
 	        return l.type !== 'sapi' && l.type !== 'fapi';
 	      }).filter(log_matches_level).filter(log_matches_types);
 
+	      console.log(context.logs.length + ' remain post filtering.');
 	      callback(null, context);
 	    }, function (context, callback) {
-	      console.log('Uploading blobs...');
+	      console.log('Shipping log data...');
 
-	      var now = Date.now();
-
-	      async.eachLimit(context.logs, 100, function (log, cb) {
-	        var date = moment(log.date);
-	        var url = date.format('YYYY/MM/DD') + '/' + date.format('HH') + '/' + log._id + '.json';
-	        console.log('Uploading ' + url + '.');
-	        var body = {};
-	        body.post_date = now;
-	        body[ctx.data.LOGSTASH_INDEX] = log[ctx.data.LOGSTASH_INDEX] || 'auth0';
-	        body.message = JSON.stringify(log);
-	        httpRequest(optionsFactory(body), function (error /*, response, body */) {
-	          if (error) {
-	            return cb(error);
-	          }
-	          return cb();
+	      if (context.logs.length > 0) {
+	        var body = context.logs.map(function (entry /*, index, arr */) {
+	          return JSON.stringify(entry);
 	        });
-	      }, function (err) {
-	        if (err) {
-	          return callback({ error: err, message: 'Error sending logs to Logstash' });
-	        }
+	        console.log(body.join('\n'));
+	        // httpRequest(optionsFactory(body), function (error /*, response, body */) {
+	        //   if (error) {
+	        //     return callback(error);
+	        //   }
+	        //   return callback();
+	        // });
+	      }
 
-	        console.log('Upload complete.');
-	        return callback(null, context);
-	      });
+	      console.log('Sent ' + context.logs.length + ' log entries. Upload complete.');
+	      return callback(null, context);
 	    }], function (err, context) {
 	      if (err) {
 	        console.log('Job failed.', err);
@@ -467,15 +460,11 @@ module.exports =
 	module.exports = Webtask.fromExpress(app);
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1).setImmediate))
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(2).nextTick;
 	var apply = Function.prototype.apply;
-	var slice = Array.prototype.slice;
-	var immediateIds = {};
-	var nextImmediateId = 0;
 
 	// DOM APIs, for completeness
 
@@ -486,7 +475,11 @@ module.exports =
 	  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
 	};
 	exports.clearTimeout =
-	exports.clearInterval = function(timeout) { timeout.close(); };
+	exports.clearInterval = function(timeout) {
+	  if (timeout) {
+	    timeout.close();
+	  }
+	};
 
 	function Timeout(id, clearFn) {
 	  this._id = id;
@@ -520,400 +513,245 @@ module.exports =
 	  }
 	};
 
-	// That's not how node.js implements it but the exposed api is the same.
-	exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
-	  var id = nextImmediateId++;
-	  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
+	// setimmediate attaches itself to the global object
+	__webpack_require__(2);
+	exports.setImmediate = setImmediate;
+	exports.clearImmediate = clearImmediate;
 
-	  immediateIds[id] = true;
 
-	  nextTick(function onNextTick() {
-	    if (immediateIds[id]) {
-	      // fn.call() is faster so we optimize for the common use-case
-	      // @see http://jsperf.com/call-apply-segu
-	      if (args) {
-	        fn.apply(null, args);
-	      } else {
-	        fn.call(null);
-	      }
-	      // Prevent ids from leaking
-	      exports.clearImmediate(id);
-	    }
-	  });
-
-	  return id;
-	};
-
-	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
-	  delete immediateIds[id];
-	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1).setImmediate, __webpack_require__(1).clearImmediate))
-
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
-	// shim for using process in browser
-	var process = module.exports = {};
+	(function (global, undefined) {
+	    "use strict";
 
-	// cached from whatever global is present so that test runners that stub it
-	// don't break things.  But we need to wrap it in a try catch in case it is
-	// wrapped in strict mode code which doesn't define any globals.  It's inside a
-	// function because try/catches deoptimize in certain engines.
-
-	var cachedSetTimeout;
-	var cachedClearTimeout;
-
-	function defaultSetTimout() {
-	    throw new Error('setTimeout has not been defined');
-	}
-	function defaultClearTimeout () {
-	    throw new Error('clearTimeout has not been defined');
-	}
-	(function () {
-	    try {
-	        if (typeof setTimeout === 'function') {
-	            cachedSetTimeout = setTimeout;
-	        } else {
-	            cachedSetTimeout = defaultSetTimout;
-	        }
-	    } catch (e) {
-	        cachedSetTimeout = defaultSetTimout;
-	    }
-	    try {
-	        if (typeof clearTimeout === 'function') {
-	            cachedClearTimeout = clearTimeout;
-	        } else {
-	            cachedClearTimeout = defaultClearTimeout;
-	        }
-	    } catch (e) {
-	        cachedClearTimeout = defaultClearTimeout;
-	    }
-	} ())
-	function runTimeout(fun) {
-	    if (cachedSetTimeout === setTimeout) {
-	        //normal enviroments in sane situations
-	        return setTimeout(fun, 0);
-	    }
-	    // if setTimeout wasn't available but was latter defined
-	    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-	        cachedSetTimeout = setTimeout;
-	        return setTimeout(fun, 0);
-	    }
-	    try {
-	        // when when somebody has screwed with setTimeout but no I.E. maddness
-	        return cachedSetTimeout(fun, 0);
-	    } catch(e){
-	        try {
-	            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-	            return cachedSetTimeout.call(null, fun, 0);
-	        } catch(e){
-	            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-	            return cachedSetTimeout.call(this, fun, 0);
-	        }
-	    }
-
-
-	}
-	function runClearTimeout(marker) {
-	    if (cachedClearTimeout === clearTimeout) {
-	        //normal enviroments in sane situations
-	        return clearTimeout(marker);
-	    }
-	    // if clearTimeout wasn't available but was latter defined
-	    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-	        cachedClearTimeout = clearTimeout;
-	        return clearTimeout(marker);
-	    }
-	    try {
-	        // when when somebody has screwed with setTimeout but no I.E. maddness
-	        return cachedClearTimeout(marker);
-	    } catch (e){
-	        try {
-	            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-	            return cachedClearTimeout.call(null, marker);
-	        } catch (e){
-	            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-	            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-	            return cachedClearTimeout.call(this, marker);
-	        }
-	    }
-
-
-
-	}
-	var queue = [];
-	var draining = false;
-	var currentQueue;
-	var queueIndex = -1;
-
-	function cleanUpNextTick() {
-	    if (!draining || !currentQueue) {
+	    if (global.setImmediate) {
 	        return;
 	    }
-	    draining = false;
-	    if (currentQueue.length) {
-	        queue = currentQueue.concat(queue);
-	    } else {
-	        queueIndex = -1;
-	    }
-	    if (queue.length) {
-	        drainQueue();
-	    }
-	}
 
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    var timeout = runTimeout(cleanUpNextTick);
-	    draining = true;
+	    var nextHandle = 1; // Spec says greater than zero
+	    var tasksByHandle = {};
+	    var currentlyRunningATask = false;
+	    var doc = global.document;
+	    var registerImmediate;
 
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        while (++queueIndex < len) {
-	            if (currentQueue) {
-	                currentQueue[queueIndex].run();
+	    function setImmediate(callback) {
+	      // Callback can either be a function or a string
+	      if (typeof callback !== "function") {
+	        callback = new Function("" + callback);
+	      }
+	      // Copy function arguments
+	      var args = new Array(arguments.length - 1);
+	      for (var i = 0; i < args.length; i++) {
+	          args[i] = arguments[i + 1];
+	      }
+	      // Store and register the task
+	      var task = { callback: callback, args: args };
+	      tasksByHandle[nextHandle] = task;
+	      registerImmediate(nextHandle);
+	      return nextHandle++;
+	    }
+
+	    function clearImmediate(handle) {
+	        delete tasksByHandle[handle];
+	    }
+
+	    function run(task) {
+	        var callback = task.callback;
+	        var args = task.args;
+	        switch (args.length) {
+	        case 0:
+	            callback();
+	            break;
+	        case 1:
+	            callback(args[0]);
+	            break;
+	        case 2:
+	            callback(args[0], args[1]);
+	            break;
+	        case 3:
+	            callback(args[0], args[1], args[2]);
+	            break;
+	        default:
+	            callback.apply(undefined, args);
+	            break;
+	        }
+	    }
+
+	    function runIfPresent(handle) {
+	        // From the spec: "Wait until any invocations of this algorithm started before this one have completed."
+	        // So if we're currently running a task, we'll need to delay this invocation.
+	        if (currentlyRunningATask) {
+	            // Delay by doing a setTimeout. setImmediate was tried instead, but in Firefox 7 it generated a
+	            // "too much recursion" error.
+	            setTimeout(runIfPresent, 0, handle);
+	        } else {
+	            var task = tasksByHandle[handle];
+	            if (task) {
+	                currentlyRunningATask = true;
+	                try {
+	                    run(task);
+	                } finally {
+	                    clearImmediate(handle);
+	                    currentlyRunningATask = false;
+	                }
 	            }
 	        }
-	        queueIndex = -1;
-	        len = queue.length;
 	    }
-	    currentQueue = null;
-	    draining = false;
-	    runClearTimeout(timeout);
-	}
 
-	process.nextTick = function (fun) {
-	    var args = new Array(arguments.length - 1);
-	    if (arguments.length > 1) {
-	        for (var i = 1; i < arguments.length; i++) {
-	            args[i - 1] = arguments[i];
+	    function installNextTickImplementation() {
+	        registerImmediate = function(handle) {
+	            process.nextTick(function () { runIfPresent(handle); });
+	        };
+	    }
+
+	    function canUsePostMessage() {
+	        // The test against `importScripts` prevents this implementation from being installed inside a web worker,
+	        // where `global.postMessage` means something completely different and can't be used for this purpose.
+	        if (global.postMessage && !global.importScripts) {
+	            var postMessageIsAsynchronous = true;
+	            var oldOnMessage = global.onmessage;
+	            global.onmessage = function() {
+	                postMessageIsAsynchronous = false;
+	            };
+	            global.postMessage("", "*");
+	            global.onmessage = oldOnMessage;
+	            return postMessageIsAsynchronous;
 	        }
 	    }
-	    queue.push(new Item(fun, args));
-	    if (queue.length === 1 && !draining) {
-	        runTimeout(drainQueue);
+
+	    function installPostMessageImplementation() {
+	        // Installs an event handler on `global` for the `message` event: see
+	        // * https://developer.mozilla.org/en/DOM/window.postMessage
+	        // * http://www.whatwg.org/specs/web-apps/current-work/multipage/comms.html#crossDocumentMessages
+
+	        var messagePrefix = "setImmediate$" + Math.random() + "$";
+	        var onGlobalMessage = function(event) {
+	            if (event.source === global &&
+	                typeof event.data === "string" &&
+	                event.data.indexOf(messagePrefix) === 0) {
+	                runIfPresent(+event.data.slice(messagePrefix.length));
+	            }
+	        };
+
+	        if (global.addEventListener) {
+	            global.addEventListener("message", onGlobalMessage, false);
+	        } else {
+	            global.attachEvent("onmessage", onGlobalMessage);
+	        }
+
+	        registerImmediate = function(handle) {
+	            global.postMessage(messagePrefix + handle, "*");
+	        };
 	    }
-	};
 
-	// v8 likes predictible objects
-	function Item(fun, array) {
-	    this.fun = fun;
-	    this.array = array;
-	}
-	Item.prototype.run = function () {
-	    this.fun.apply(null, this.array);
-	};
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
+	    function installMessageChannelImplementation() {
+	        var channel = new MessageChannel();
+	        channel.port1.onmessage = function(event) {
+	            var handle = event.data;
+	            runIfPresent(handle);
+	        };
 
-	function noop() {}
+	        registerImmediate = function(handle) {
+	            channel.port2.postMessage(handle);
+	        };
+	    }
 
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
+	    function installReadyStateChangeImplementation() {
+	        var html = doc.documentElement;
+	        registerImmediate = function(handle) {
+	            // Create a <script> element; its readystatechange event will be fired asynchronously once it is inserted
+	            // into the document. Do so, thus queuing up the task. Remember to clean up once it's been called.
+	            var script = doc.createElement("script");
+	            script.onreadystatechange = function () {
+	                runIfPresent(handle);
+	                script.onreadystatechange = null;
+	                html.removeChild(script);
+	                script = null;
+	            };
+	            html.appendChild(script);
+	        };
+	    }
 
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
+	    function installSetTimeoutImplementation() {
+	        registerImmediate = function(handle) {
+	            setTimeout(runIfPresent, 0, handle);
+	        };
+	    }
 
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
+	    // If supported, we should attach to the prototype of global, since that is where setTimeout et al. live.
+	    var attachTo = Object.getPrototypeOf && Object.getPrototypeOf(global);
+	    attachTo = attachTo && attachTo.setTimeout ? attachTo : global;
+
+	    // Don't get fooled by e.g. browserify environments.
+	    if ({}.toString.call(global.process) === "[object process]") {
+	        // For Node.js before 0.9
+	        installNextTickImplementation();
+
+	    } else if (canUsePostMessage()) {
+	        // For non-IE10 modern browsers
+	        installPostMessageImplementation();
+
+	    } else if (global.MessageChannel) {
+	        // For web workers, where supported
+	        installMessageChannelImplementation();
+
+	    } else if (doc && "onreadystatechange" in doc.createElement("script")) {
+	        // For IE 6–8
+	        installReadyStateChangeImplementation();
+
+	    } else {
+	        // For older browsers
+	        installSetTimeoutImplementation();
+	    }
+
+	    attachTo.setImmediate = setImmediate;
+	    attachTo.clearImmediate = clearImmediate;
+	}(typeof self === "undefined" ? typeof global === "undefined" ? this : global : self));
 
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports) {
-
-	module.exports = require("winston");
-
-/***/ },
-/* 4 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	module.exports = require("async");
 
-/***/ },
-/* 5 */
-/***/ function(module, exports) {
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
 
 	module.exports = require("moment");
 
-/***/ },
-/* 6 */
-/***/ function(module, exports) {
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
 
 	module.exports = require("useragent");
 
-/***/ },
-/* 7 */
-/***/ function(module, exports) {
+/***/ }),
+/* 6 */
+/***/ (function(module, exports) {
 
 	module.exports = require("express");
 
-/***/ },
-/* 8 */
-/***/ function(module, exports) {
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
 
 	module.exports = require("webtask-tools");
 
-/***/ },
-/* 9 */
-/***/ function(module, exports) {
+/***/ }),
+/* 8 */
+/***/ (function(module, exports) {
 
 	module.exports = require("request");
 
-/***/ },
-/* 10 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ }),
+/* 9 */
+/***/ (function(module, exports) {
 
-	const LRU        = __webpack_require__(11);
-	const _          = __webpack_require__(12);
-	const lru_params = [ 'max', 'maxAge', 'length', 'dispose', 'stale' ];
+	module.exports = require("lru-memoizer");
 
-	module.exports = function (options) {
-	  const cache      = new LRU(_.pick(options, lru_params));
-	  const load       = options.load;
-	  const hash       = options.hash;
-	  const bypass     = options.bypass;
-	  const itemMaxAge = options.itemMaxAge;
-	  const loading    = new Map();
-
-	  if (options.disable) {
-	    return load;
-	  }
-
-	  const result = function () {
-	    const args       = _.toArray(arguments);
-	    const parameters = args.slice(0, -1);
-	    const callback   = args.slice(-1).pop();
-	    const self       = this;
-
-	    var key;
-
-	    if (bypass && bypass.apply(self, parameters)) {
-	      return load.apply(self, args);
-	    }
-
-	    if (parameters.length === 0 && !hash) {
-	      //the load function only receives callback.
-	      key = '_';
-	    } else {
-	      key = hash.apply(self, parameters);
-	    }
-
-	    var fromCache = cache.get(key);
-
-	    if (fromCache) {
-	      return callback.apply(null, [null].concat(fromCache));
-	    }
-
-	    if (!loading.get(key)) {
-	      loading.set(key, []);
-
-	      load.apply(self, parameters.concat(function (err) {
-	        const args = _.toArray(arguments);
-
-	        //we store the result only if the load didn't fail.
-	        if (!err) {
-	          const result = args.slice(1);
-	          if (itemMaxAge) {
-	            cache.set(key, result, itemMaxAge.apply(self, parameters.concat(result)));
-	          } else {
-	            cache.set(key, result);
-	          }
-	        }
-
-	        //immediately call every other callback waiting
-	        loading.get(key).forEach(function (callback) {
-	          callback.apply(null, args);
-	        });
-
-	        loading.delete(key);
-	        /////////
-
-	        callback.apply(null, args);
-	      }));
-	    } else {
-	      loading.get(key).push(callback);
-	    }
-	  };
-
-	  result.keys = cache.keys.bind(cache);
-
-	  return result;
-	};
-
-
-	module.exports.sync = function (options) {
-	  const cache = new LRU(_.pick(options, lru_params));
-	  const load = options.load;
-	  const hash = options.hash;
-	  const disable = options.disable;
-	  const bypass = options.bypass;
-	  const self = this;
-	  const itemMaxAge = options.itemMaxAge;
-
-	  if (disable) {
-	    return load;
-	  }
-
-	  const result = function () {
-	    var args = _.toArray(arguments);
-
-	    if (bypass && bypass.apply(self, arguments)) {
-	      return load.apply(self, arguments);
-	    }
-
-	    var key = hash.apply(self, args);
-
-	    var fromCache = cache.get(key);
-
-	    if (fromCache) {
-	      return fromCache;
-	    }
-
-	    const result = load.apply(self, args);
-	    if (itemMaxAge) {
-	      cache.set(key, result, itemMaxAge.apply(self, args.concat([ result ])));
-	    } else {
-	      cache.set(key, result);
-	    }
-
-	    return result;
-	  };
-
-	  result.keys = cache.keys.bind(cache);
-
-	  return result;
-	};
-
-
-/***/ },
-/* 11 */
-/***/ function(module, exports) {
-
-	module.exports = require("lru-cache");
-
-/***/ },
-/* 12 */
-/***/ function(module, exports) {
-
-	module.exports = require('lodash');
-
-/***/ }
+/***/ })
 /******/ ]);
