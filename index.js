@@ -104,12 +104,12 @@ function lastLogCheckpoint(req, res) {
             return JSON.stringify(entry);
           });
           console.log(body.join('\n'));
-          // httpRequest(optionsFactory(body), function (error /*, response, body */) {
-          //   if (error) {
-          //     return callback(error);
-          //   }
-          //   return callback();
-          // });
+          httpRequest(optionsFactory(body.join('\n')), function (error /*, response, body */) {
+            if (error) {
+              return callback(error);
+            }
+            return callback();
+          });
         }
 
         console.log(`Sent ${context.logs.length} log entries. Upload complete.`);
