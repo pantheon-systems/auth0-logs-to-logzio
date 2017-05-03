@@ -82,9 +82,11 @@ module.exports =
 	      and necessary HTTP info
 	     */
 	    var optionsFactory = function optionsFactory(body) {
+	      var logzio_url = ctx.data.LOGZIO_URL + '?token=' + ctx.data.LOGZIO_TOKEN + '&type=' + ctx.data.LOGZIO_TYPE;
+	      console.log('Shipping to logz.io at: ' + logzio_url);
 	      return {
 	        method: 'POST',
-	        url: ctx.data.LOGZIO_URL + '?token=' + ctx.data.LOGZIO_TOKEN + '&type=' + ctx.data.LOGZIO_TYPE,
+	        url: logzio_url,
 	        headers: {
 	          'cache-control': 'no-cache',
 	          'content-type': 'application/json'
@@ -148,13 +150,16 @@ module.exports =
 	        return l.type !== 'sapi' && l.type !== 'fapi';
 	      }).filter(log_matches_level).filter(log_matches_types);
 
-	      console.log(context.logs.length + ' remain post filtering.');
+	      console.log(context.logs.length + ' log entry remain post filtering.');
 	      callback(null, context);
 	    }, function (context, callback) {
-	      console.log('Shipping log data...');
-
 	      if (context.logs.length > 0) {
+	        console.log('Shipping log data...');
 	        var body = context.logs.map(function (entry /*, index, arr */) {
+	          entry['@timestamp'] = entry.date;
+	          entry['message'] = 'Auth0: ' + logTypes[entry.type].event;
+	          entry['level'] = logTypes[entry.type].level;
+	          entry['tags'] = [ctx.data.AUTH0_DOMAIN];
 	          return JSON.stringify(entry);
 	        });
 	        console.log(body.join('\n'));
@@ -162,12 +167,14 @@ module.exports =
 	          if (error) {
 	            return callback(error);
 	          }
-	          return callback();
-	        });
-	      }
 
-	      console.log('Sent ' + context.logs.length + ' log entries. Upload complete.');
-	      return callback(null, context);
+	          console.log('Sent ' + context.logs.length + ' log entries. Upload complete.');
+	          return callback(null, context);
+	        });
+	      } else {
+	        console.log('No logs shipped this iteration');
+	        return callback(null, context);
+	      }
 	    }], function (err, context) {
 	      if (err) {
 	        console.log('Job failed.', err);
