@@ -16,7 +16,7 @@
   },
   "secrets": {
     "BATCH_SIZE": {
-      "description": "The ammount of logs to be read on each execution. Maximun is 100.",
+      "description": "The ammount of logs to be read on each execution. Maximum is 100.",
       "default": 100
     },
     "LOGZIO_URL": {

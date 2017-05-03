@@ -3,62 +3,56 @@
 [![Auth0 Extensions](http://cdn.auth0.com/extensions/assets/badge.svg)](https://sandbox.it.auth0.com/api/run/auth0-extensions/extensions-badge?webtask_no_cache=1)
 
 This extension will take all of your Auth0 logs and export them to [Logz.io](https://logz.io).
+This repository is a detached fork based on original work by Auth0 and their [auth0-logs-to-logstash](https://github.com/auth0/auth0-logs-to-logstash) extension.
 
-## Configure Webtask
+## Installation and Configuration
+There are a couple of methods you can use to install this extension:
 
-If you haven't configured Webtask on your machine run this first:
+1. Semi-Automatic Option
+   1. Click the [Install in Auth0] button above to install and configure the extension in your current Auth0 domain.
+   1. Enter your Logz.io [authorization token](https://app.logz.io/#/dashboard/account/) as `LOGZIO_TOKEN` 
+   1. Configure extension settings, described below.
+1. Semi-Manual Option
+   1. Visit the [Extensions](https://manage.auth0.com/#/extensions) tab in your Auth0 dashboard and find the [Create Extension] link:
+   1. Enter the location of this repo `https://github.com/pantheon-systems/auth0-logs-to-logzio` in the GitHub Url field.
+   1. Enter your Logz.io [authorization token](https://app.logz.io/#/dashboard/account/) as `LOGZIO_TOKEN` 
+   1. Configure extension settings, described below.
 
-```
-npm i -g wt-cli
-wt init
-```
+The options for this extension are pretty straight forward:
 
-> Requires at least node 4.2.2 - if you're running multiple version of node make sure to load the right version, e.g. "nvm use 4.2.2"
+- `Schedule` - Log shipping cron interval.
+  Logs don't stream direct to Logz.io but rather run on a cron based schedule. Pick an interval appropriate for your needs.
+  You can actually tweak this later in the Scheduled Task configuration later if you like.
+  `Default: 5m`
 
-## Deploy to Webtask.io
+- `BATCH_SIZE` - Log shipping batch size.
+  Pick a number appropriate for your log volume and schedule interval. Maximum is 100.
+  `Default: 100`
 
-To run it on a schedule (run every 5 minutes for example):
+- `LOGZIO_URL` - The URL for Logz.io [Bulk HTTP/S](https://app.logz.io/#/dashboard/data-sources/Bulk-HTTPS) listener.
+  `Default: https://listener.logz.io:8071/ (HTTPS)`
+  - HTTP: `http://listener.logz.io:8070/`
+  - HTTPS: `https://listener.logz.io:8071/`
 
-```bash
-$ npm run build
-$ wt cron schedule \
-    --name auth0-logs-to-logzio \
-    --secret AUTH0_DOMAIN="YOUR_AUTH0_DOMAIN" \
-    --secret AUTH0_GLOBAL_CLIENT_ID="YOUR_AUTH0_GLOBAL_CLIENT_ID" \
-    --secret AUTH0_GLOBAL_CLIENT_SECRET="YOUR_AUTH0_GLOBAL_CLIENT_SECRET" \
-    --secret LOG_LEVEL="1" \
-    --secret LOG_TYPES="s,f" \
-    --secret LOGZIO_TOKEN="LOGZIO_TOKEN" \
-    --secret LOGZIO_URL="https://listener.logz.io:8071/" \
-    --secret LOGZIO_TYPE="auth0" \
-    "*/5 * * * *" \
-    build/bundle.js
-```
+- `LOGZIO_TOKEN` - Your Logz.io Authorization Token
+  Find this in on your [Logz.io User Settings](https://app.logz.io/#/dashboard/account/) page.
+
+- `LOGZIO_TYPE` - Identifies the type of log data we're sending to Logz.io
+  Logz.io doesn't have a special log format parser for Auth0 but it is a required parameter and also handy to filter on (i.e. `type:"auth0`).
+  `Default: auth0`
+
+- `LOG_LEVEL` - Auth0 log level filter.
+  Values: `0 - Debug`, `1 - Info`, `2 - Warning`, `3 - Error`, `4 - Critical`
+  `Default: 0`
 
 
-The following settings are optional:
-
- - `LOG_LEVEL`: This allows you to specify the log level of events that need to be sent.
- - `LOG_TYPES`: If you only want to send events with a specific type (eg: failed logins). This needs to be a comma separated list.
-
-> You can get your Global Client Id/Secret here: https://auth0.com/docs/api/v2
+- `LOG_TYPES` - Auth0 log type filter.
+  Use a comma-separated string of [Auth0 log event types](https://auth0.com/docs/logs).
+  `Default: []`
 
 ## Usage
 
-Install the extension, and search your logz.io data using the LOGZIO_TYPE key (default 'auth0') specified.
-
-## Developing
-1. Ensure webpack is installed:
-
-   `npm install -g webpack`
-
-1. Ensure dependencies are installed:
-
-   `npm install`
-
-1. Build runtime artifact (bundle.js):
-
-   `webpack`
+Install the extension, and search your logz.io data using the LOGZIO_TYPE key (i.e. type:"auth0").
 
 
 ## Filters
@@ -110,15 +104,39 @@ The `LOG_TYPES` filter can be set to:
 - `sdu`: Successful User Deletion (level: 1)
 - `fdu`: Failed User Deletion (level: 3)
 
-So for example, if I want to filter on a few events I would set the `LOG_TYPES` filter to: `sce,fce,scu,fcu`.
+So for example, if you want to filter on a subset of events, set the `LOG_TYPES` filter to: `sce,fce,scu,fcu`.
+
+
+## Developing
+1. Clone the repo:
+
+   ```
+   git clone git@github.com:pantheon-systems/auth0-logs-to-logzio.git
+   cd auth0-logs-to-logzio
+   ```
+
+1. Ensure dependencies are installed:
+
+   ```
+   npm install
+   ```
+
+1. Build runtime artifact (bundle.js):
+
+   ```
+   npm run build
+   ```
+
 
 ## Issue Reporting
 
 If you have found a bug or if you have a feature request, please report them at this repository issues section. Please do not report security vulnerabilities on the public GitHub issue tracker. The [Responsible Disclosure Program](https://auth0.com/whitehat) details the procedure for disclosing security issues.
 
+
 ## Author
 
 [Pantheon Systems](https://pantheon.io)
+
 
 ## What is Auth0?
 
@@ -131,10 +149,12 @@ Auth0 helps you to:
 * Analytics of how, when and where users are logging in.
 * Pull data from other sources and add it to the user profile, through [JavaScript rules](https://docs.auth0.com/rules).
 
+
 ## Create a free Auth0 Account
 
 1. Go to [Auth0](https://auth0.com) and click Sign Up.
 2. Use Google, GitHub or Microsoft Account to login.
+
 
 ## License
 
