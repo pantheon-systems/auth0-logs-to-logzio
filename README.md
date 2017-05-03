@@ -38,7 +38,7 @@ The options for this extension are pretty straight forward:
   Find this in on your [Logz.io User Settings](https://app.logz.io/#/dashboard/account/) page.
 
 - `LOGZIO_TYPE` - Identifies the type of log data we're sending to Logz.io
-  Logz.io doesn't have a special log format parser for Auth0 but it is a required parameter and also handy to filter on (i.e. `type:"auth0`).
+  Logz.io doesn't have a special log format parser for Auth0 but it is a required parameter and also handy to filter on (i.e. `type:"auth0"`).
   `Default: auth0`
 
 - `LOG_LEVEL` - Auth0 log level filter.
