@@ -141,12 +141,12 @@ module.exports =
 	        return log.type && types_filter.indexOf(log.type) >= 0;
 	      };
 
-	      console.log('Filtering ' + context.logs.length + ' logs matching LOG_LEVEL:' + min_log_level + ' and LOG_TYPES:[' + types_filter.join(',') + ']');
+	      // console.log(`Filtering ${context.logs.length} logs matching LOG_LEVEL:${min_log_level} and LOG_TYPES:[${types_filter.join(',')}]`);
 	      context.logs = context.logs.filter(function (l) {
 	        return l.type !== 'sapi' && l.type !== 'fapi';
 	      }).filter(log_matches_level).filter(log_matches_types);
 
-	      console.log(context.logs.length + ' log entry remain post filtering.');
+	      // console.log(`${context.logs.length} log entry remain post filtering.`);
 	      callback(null, context);
 	    }, function (context, callback) {
 	      if (context.logs.length > 0) {
@@ -158,7 +158,7 @@ module.exports =
 	          entry['source'] = ctx.data.AUTH0_DOMAIN;
 	          return JSON.stringify(entry);
 	        });
-	        console.log(body.join('\n'));
+	        // console.log(body.join('\n'));
 	        httpRequest(optionsFactory(body.join('\n')), function (error /*, response, body */) {
 	          if (error) {
 	            return callback(error);

@@ -127,6 +127,7 @@ So for example, if you want to filter on a subset of events, set the `LOG_TYPES`
    npm run build
    ```
 
+When the extension is installed the webtask server runs the webpack build artifact `bundle.js` which is loaded from the repository so it is *important to remember* to commit this file to the repository.
 
 ## Issue Reporting
 
