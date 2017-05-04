@@ -105,7 +105,7 @@ function lastLogCheckpoint(req, res) {
             entry['@timestamp'] = entry.date;
             entry['message'] = `Auth0: ${logTypes[entry.type].event}`;
             entry['level'] = logTypes[entry.type].level;
-            entry['tags'] = [ctx.data.AUTH0_DOMAIN];
+            entry['source'] = ctx.data.AUTH0_DOMAIN;
             return JSON.stringify(entry);
           });
           console.log(body.join('\n'));
@@ -291,14 +291,8 @@ const logTypes = {
     level: 3 // Error
   },
   'sapi': {
-    event: 'API Operation'
-  },
-  'fapi': {
-    event: 'Failed API Operation'
-  },
-  'limit_wc': {
-    event: 'Blocked Account',
-    level: 4 // Critical
+    event: 'API Operation',
+    level: 1 // Info
   },
   'limit_ui': {
     event: 'Too Many Calls to /userinfo',
