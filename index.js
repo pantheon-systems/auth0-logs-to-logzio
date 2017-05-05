@@ -89,31 +89,33 @@ function lastLogCheckpoint(req, res) {
           return log.type && types_filter.indexOf(log.type) >= 0;
         };
 
-        // console.log(`Filtering ${context.logs.length} logs matching LOG_LEVEL:${min_log_level} and LOG_TYPES:[${types_filter.join(',')}]`);
+        // console.log(`DEBUG: Filtering ${context.logs.length} logs matching LOG_LEVEL:${min_log_level} and LOG_TYPES:[${types_filter.join(',')}]`);
         context.logs = context.logs
           .filter(l => l.type !== 'sapi' && l.type !== 'fapi')
           .filter(log_matches_level)
           .filter(log_matches_types);
 
-        // console.log(`${context.logs.length} log entry remain post filtering.`);
+        // console.log(`DEBUG: ${context.logs.length} log entry remain post filtering.`);
         callback(null, context);
       },
       (context, callback) => {
         if (context.logs.length > 0) {
           console.log('Shipping log data...');
-          let body = context.logs.map(function (entry /*, index, arr */) {
+          let log_entries = context.logs.reduce(function (log_lines, entry) {
             entry['@timestamp'] = entry.date;
             entry['message'] = `Auth0: ${logTypes[entry.type].event}`;
             entry['level'] = logTypes[entry.type].level;
             entry['source'] = ctx.data.AUTH0_DOMAIN;
-            return JSON.stringify(entry);
-          });
-          // console.log(body.join('\n'));
-          httpRequest(optionsFactory(body.join('\n')), function (error /*, response, body */) {
+            return log_lines + JSON.stringify(entry) + "\n";
+          }, "");
+          console.log(`DEBUG: Message body:\n ${log_entries}`);
+          httpRequest(optionsFactory(log_entries), function (error, response, body) {
             if (error) {
+              console.log(`ERROR: ${error}`);
               return callback(error);
             }
 
+            console.log(`Logz.io response was [${response.statusCode}] ${JSON.stringify(body)}`);
             console.log(`Sent ${context.logs.length} log entries. Upload complete.`);
             return callback(null, context);
           });
