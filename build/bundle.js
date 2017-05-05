@@ -155,19 +155,21 @@ module.exports =
 	          entry['@timestamp'] = entry.date;
 	          entry['message'] = 'Auth0: [' + entry.type + '] ' + logTypes[entry.type].event;
 	          entry['level'] = logTypes[entry.type].level;
-	          entry['event_type'] = logTypes[entry.type].level;
+	          entry['event_type'] = entry.type;
 	          entry['event_desc'] = logTypes[entry.type].event;
-	          entry['tags'] = [ctx.data.AUTH0_DOMAIN];
-	          return log_lines + JSON.stringify(entry) + "\n";
+	          entry['event_source'] = ctx.data.AUTH0_DOMAIN;
+	          return log_lines + JSON.stringify(entry, null, 0) + "\n";
 	        }, "");
 	        console.log('DEBUG: Message body:\n ' + log_entries);
 	        httpRequest(optionsFactory(log_entries), function (error, response, body) {
 	          if (error) {
-	            console.log('ERROR: ' + error);
 	            return callback(error);
 	          }
 
-	          console.log('Logz.io response was [' + response.statusCode + '] ' + JSON.stringify(body));
+	          if (response && response.statusCode != 200) {
+	            return callback({ error: JSON.parse(body), message: 'ERROR: Logz.io Listener refused POST with status code: ' + response.statusCode });
+	          }
+
 	          console.log('Sent ' + context.logs.length + ' log entries. Upload complete.');
 	          return callback(null, context);
 	        });
