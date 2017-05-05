@@ -47,6 +47,10 @@ module.exports =
 
 	/* WEBPACK VAR INJECTION */(function(setImmediate) {'use strict';
 
+	var _logTypes;
+
+	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 	var async = __webpack_require__(3);
 	var moment = __webpack_require__(4);
 	var useragent = __webpack_require__(5);
@@ -141,33 +145,29 @@ module.exports =
 	        return log.type && types_filter.indexOf(log.type) >= 0;
 	      };
 
-	      // console.log(`DEBUG: Filtering ${context.logs.length} logs matching LOG_LEVEL:${min_log_level} and LOG_TYPES:[${types_filter.join(',')}]`);
+	      console.log('Filtering ' + context.logs.length + ' logs matching LOG_LEVEL:' + min_log_level + ' and LOG_TYPES:[' + types_filter.join(',') + ']');
 	      context.logs = context.logs.filter(function (l) {
 	        return l.type !== 'sapi' && l.type !== 'fapi';
 	      }).filter(log_matches_level).filter(log_matches_types);
 
-	      // console.log(`DEBUG: ${context.logs.length} log entry remain post filtering.`);
+	      console.log(context.logs.length + ' log entry remain post filtering.');
 	      callback(null, context);
 	    }, function (context, callback) {
 	      if (context.logs.length > 0) {
 	        console.log('Shipping log data...');
-	        var log_entries = context.logs.reduce(function (log_lines, entry) {
+	        var body = context.logs.map(function (entry /*, index, arr */) {
 	          entry['@timestamp'] = entry.date;
-	          entry['message'] = 'Auth0: [' + entry.type + '] ' + logTypes[entry.type].event;
+	          entry['message'] = 'Auth0: ' + logTypes[entry.type].event;
 	          entry['level'] = logTypes[entry.type].level;
-	          entry['event_type'] = logTypes[entry.type].level;
-	          entry['event_desc'] = logTypes[entry.type].event;
 	          entry['tags'] = [ctx.data.AUTH0_DOMAIN];
-	          return log_lines + JSON.stringify(entry) + "\n";
-	        }, "");
-	        console.log('DEBUG: Message body:\n ' + log_entries);
-	        httpRequest(optionsFactory(log_entries), function (error, response, body) {
+	          return JSON.stringify(entry);
+	        });
+	        console.log(body.join('\n'));
+	        httpRequest(optionsFactory(body.join('\n')), function (error /*, response, body */) {
 	          if (error) {
-	            console.log('ERROR: ' + error);
 	            return callback(error);
 	          }
 
-	          console.log('Logz.io response was [' + response.statusCode + '] ' + JSON.stringify(body));
 	          console.log('Sent ' + context.logs.length + ' log entries. Upload complete.');
 	          return callback(null, context);
 	        });
@@ -204,7 +204,7 @@ module.exports =
 	  });
 	}
 
-	var logTypes = {
+	var logTypes = (_logTypes = {
 	  's': {
 	    event: 'Success Login',
 	    level: 1 // Info
@@ -342,8 +342,14 @@ module.exports =
 	    level: 3 // Error
 	  },
 	  'sapi': {
-	    event: 'API Operation',
-	    level: 1 // Info
+	    event: 'API Operation'
+	  },
+	  'fapi': {
+	    event: 'Failed API Operation'
+	  },
+	  'limit_wc': {
+	    event: 'Blocked Account',
+	    level: 4 // Critical
 	  },
 	  'limit_ui': {
 	    event: 'Too Many Calls to /userinfo',
@@ -360,36 +366,29 @@ module.exports =
 	  'fdu': {
 	    event: 'Failed User Deletion',
 	    level: 3 // Error
-	  },
-	  'fapi': {
-	    event: 'Failed API Operation',
-	    level: 3 // Error
-	  },
-	  'limit_wc': {
-	    event: 'Blocked Account',
-	    level: 3 // Error
-	  },
-	  'limit_mu': {
-	    event: 'Blocked IP Address',
-	    level: 3 // Error
-	  },
-	  'slo': {
-	    event: 'Success Logout',
-	    level: 1 // Info
-	  },
-	  'flo': {
-	    event: ' Failed Logout',
-	    level: 3 // Error
-	  },
-	  'sd': {
-	    event: 'Success Delegation',
-	    level: 1 // Info
-	  },
-	  'fd': {
-	    event: 'Failed Delegation',
-	    level: 3 // Error
 	  }
-	};
+	}, _defineProperty(_logTypes, 'fapi', {
+	  event: 'Failed API Operation',
+	  level: 3 // Error
+	}), _defineProperty(_logTypes, 'limit_wc', {
+	  event: 'Blocked Account',
+	  level: 3 // Error
+	}), _defineProperty(_logTypes, 'limit_mu', {
+	  event: 'Blocked IP Address',
+	  level: 3 // Error
+	}), _defineProperty(_logTypes, 'slo', {
+	  event: 'Success Logout',
+	  level: 1 // Info
+	}), _defineProperty(_logTypes, 'flo', {
+	  event: ' Failed Logout',
+	  level: 3 // Error
+	}), _defineProperty(_logTypes, 'sd', {
+	  event: 'Success Delegation',
+	  level: 1 // Info
+	}), _defineProperty(_logTypes, 'fd', {
+	  event: 'Failed Delegation',
+	  level: 3 // Error
+	}), _logTypes);
 
 	function getLogsFromAuth0(domain, token, take, from, cb) {
 	  var url = 'https://' + domain + '/api/v2/logs';
