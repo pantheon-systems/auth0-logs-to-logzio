@@ -79,7 +79,7 @@ module.exports =
 	     */
 	    var optionsFactory = function optionsFactory(body) {
 	      var logzio_url = ctx.data.LOGZIO_URL + '?token=' + ctx.data.LOGZIO_TOKEN + '&type=' + ctx.data.LOGZIO_TYPE;
-	      console.log('Shipping to logz.io at: ' + logzio_url);
+	      console.log('logz.io listener: ' + logzio_url);
 	      return {
 	        method: 'POST',
 	        url: logzio_url,
@@ -160,7 +160,8 @@ module.exports =
 	          entry['event_source'] = ctx.data.AUTH0_DOMAIN;
 	          return log_lines + JSON.stringify(entry, null, 0) + "\n";
 	        }, "");
-	        console.log('DEBUG: Message body:\n ' + log_entries);
+
+	        // console.log(`DEBUG: Message body:\n ${log_entries}`);
 	        httpRequest(optionsFactory(log_entries), function (error, response, body) {
 	          if (error) {
 	            return callback(error);
