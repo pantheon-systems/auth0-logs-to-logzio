@@ -35,10 +35,10 @@ function lastLogCheckpoint(req, res) {
         url:     logzio_url,
         headers: {
           'cache-control': 'no-cache',
-          'content-type':  'application/json'
+          'content-type':  'text/plain'
         },
-        body:    body,
-        json:    true
+        body:    body.toString(),
+        json:    false
       };
     };
 
