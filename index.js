@@ -1,3 +1,4 @@
+const metadata = require('./webtask.json');
 const async = require('async');
 const moment = require('moment');
 const useragent = require('useragent');
@@ -418,5 +419,10 @@ app.use(function (req, res, next) {
 
 app.get('/', lastLogCheckpoint);
 app.post('/', lastLogCheckpoint);
+
+// This endpoint is called by webtask-gallery when the extension is installed as custom-extension
+app.get('/meta', (req, res) => {
+  res.status(200).send(metadata);
+});
 
 module.exports = Webtask.fromExpress(app);
