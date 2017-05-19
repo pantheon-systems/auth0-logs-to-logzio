@@ -8,7 +8,10 @@
   "repository": "https://github.com/pantheon-systems/auth0-logs-to-logzio",
   "keywords": [
     "auth0",
-    "extension"
+    "extension",
+    "logz.io",
+    "logging",
+    "export"
   ],
   "schedule": "0 */5 * * * *",
   "auth0": {
@@ -16,10 +19,12 @@
   },
   "secrets": {
     "BATCH_SIZE": {
-      "description": "The ammount of logs to be read on each execution. Maximum is 100.",
+      "description": "The amount of logs to be read on each execution. Maximum is 100.",
       "default": 100
     },
-    "START_FROM": {"description": "The Auth0 LogId from where you want to start. This will only be used on first run."},
+    "START_FROM": {
+      "description": "The Auth0 LogId from where you want to start. This will only be used on first run."
+    },
     "LOGZIO_URL": {
       "description": "Logz.io Bulk HTTP/s Listener URL. See https://app.logz.io/#/dashboard/data-sources/Bulk-HTTPS",
       "default": "https://listener.logz.io:8071/",
