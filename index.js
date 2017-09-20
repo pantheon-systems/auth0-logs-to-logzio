@@ -103,11 +103,12 @@ function lastLogCheckpoint(req, res) {
         if (context.logs.length > 0) {
           console.log('Shipping log data...');
           let log_entries = context.logs.reduce(function (log_lines, entry) {
+            let logType = logTypes[entry.type] || {event: `Unknown Event ${entry}`, level: 5};
             entry['@timestamp'] = entry.date;
-            entry['message'] = `Auth0: [${entry.type}] ${logTypes[entry.type].event}`;
-            entry['level'] = logTypes[entry.type].level;
+            entry['message'] = `Auth0: [${entry.type}] ${logType.event}`;
+            entry['level'] = logType.level;
             entry['event_type'] = entry.type;
-            entry['event_desc'] = logTypes[entry.type].event;
+            entry['event_desc'] = logType.event;
             entry['event_source'] = ctx.data.AUTH0_DOMAIN;
             return log_lines + JSON.stringify(entry, null, 0) + "\n";
           }, "");
