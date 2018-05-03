@@ -1,5 +1,8 @@
 # Auth0 - Logs to Logz.io
 
+# Deprecated 05/02/2018
+Auth0 has dropped their support for Scheduled Task extentions and this project has not been updated or tested to operate under the new webtask.io platform.
+
 [![Auth0 Extensions](http://cdn.auth0.com/extensions/assets/badge.svg)](https://sandbox.it.auth0.com/api/run/auth0-extensions/extensions-badge?webtask_no_cache=1)
 
 This extension will take all of your Auth0 logs and export them to [Logz.io](https://logz.io).
